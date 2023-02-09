@@ -1,79 +1,89 @@
-#
+import argparse
+from argparse import Namespace
 import os
-import re
+from datetime import datetime
 import pandas as pd
-from sklearn.model_selection import train_test_split
 
-from transformers import AutoTokenizer
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import StochasticWeightAveraging
-import wandb
-from datasets import load_dataset
+from transformers import AutoTokenizer
 
+from utility import load_train_data
 from loader import Encoder
-from loader import MultiClassDataset
 from loader import MultiClassDataModule
 from model import TransformerForSequenceClassification
 
 
-os.chdir("/Users/james.morrissey/Grid/cx_data_science/solvvy_intent/")
+def main(hparams) -> None:
+    pl.seed_everything(seed=42)
 
-ckpt = "distilbert-base-uncased"
-tokenizer = AutoTokenizer.from_pretrained(ckpt)
+    train_df, val_df = load_train_data()
 
-# df = pd.read_csv("./data/zero_shot_labels_0_1000.csv")
-# df_2 = pd.read_csv("./data/zero_shot_labels_1000_2000.csv")
-# df_3 = pd.read_csv("./data/zero_shot_labels_2000_3000.csv")
-# df = pd.concat([df, df_2, df_3])
+    # Initialize MultiClassDataModule
+    tokenizer = AutoTokenizer.from_pretrained(hparams.model_name_or_path)
+    encoder = Encoder(tokenizer)
+    dm = MultiClassDataModule(train_df, val_df, tokenizer, encoder)
+    dm.setup()
+    hparams.num_steps = hparams.max_epochs * len(dm.train_dataloader())
 
-# df["seqs"] = df["seqs"].apply(lambda x: x.lower())
-# df["seqs"] = df["seqs"].apply(lambda x: re.sub(r"=+", " ", x))
-# df["preds"] = df["preds"].apply(lambda x: x.replace(" ", "_"))
-# df["preds"] = df["preds"].replace(
-#     {
-#         "how_to_do_a_task": 0,
-#         "unable_to_complete_a_task": 1,
-#         "something_isnt_working_how_it_should": 2,
-#     }
-# )
+    # Initialize TransformerForSequenceClassification
+    model = TransformerForSequenceClassification(hparams)
 
-# df.columns = ["labels", "full_text"]
-# train_df, val_df = train_test_split(
-#     df, test_size=0.1, random_state=42, stratify=df.labels
-# )
-train_df = pd.DataFrame(load_dataset("ag_news", split="train[:20%]")).rename(
-    columns={"label": "labels", "text": "full_text"}
-)
-val_df = pd.DataFrame(load_dataset("ag_news", split="test[:20%]")).rename(
-    columns={"label": "labels", "text": "full_text"}
-)
+    # Create Logger and Callbacks
+    early_stop_callback = EarlyStopping(
+        monitor=hparams.monitor, verbose=True, mode="min"
+    )
+    ckpt_path = os.path.join(
+        "experiments/",
+        "version_" + datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "checkpoints",
+    )
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=ckpt_path,
+        save_top_k=hparams.save_top_k,
+        verbose=True,
+        monitor=hparams.monitor,
+        mode="min",
+    )
 
-breakpoint()
+    # Initialize Trainer and Fit
+    trainer = pl.Trainer(
+        callbacks=[early_stop_callback, checkpoint_callback],
+        accelerator=hparams.accelerator,
+        fast_dev_run=hparams.fast_dev_run,
+        max_epochs=hparams.max_epochs,
+    )
+    trainer.fit(model, dm)
 
-encoder = Encoder(tokenizer)
-dm = MultiClassDataModule(train_df, val_df, tokenizer, encoder)
-dm.setup()
-sample_batch = next(iter(dm.train_dataloader()))
 
-NUM_EPOCHS = 1
-TRAIN_BATCHES = len(dm.train_dataloader())
-TRAIN_STEPS = NUM_EPOCHS * TRAIN_BATCHES
-model_hparams = {"num_steps": TRAIN_STEPS, "num_labels": 4}
-model = TransformerForSequenceClassification(**model_hparams)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Train a Transformer model for sequence classification",
+        add_help=True,
+    )
+    parser.add_argument("--fast_dev_run", type=bool, default=False)
+    parser.add_argument("--model_name_or_path", type=str)
+    parser.add_argument("--num_labels", type=int)
 
-wandb_logger = WandbLogger(
-    project="grid-classification",
-)
-trainer = pl.Trainer(
-    max_epochs=NUM_EPOCHS,
-    # logger=wandb_logger,
-    callbacks=[
-        StochasticWeightAveraging(swa_lrs=1e-2),
-        EarlyStopping(monitor="val_loss", mode="min"),
-    ],
-    auto_lr_find=True,
-    fast_dev_run=True,
-)
-trainer.fit(model, dm)
+    parser.add_argument(
+        "--save_top_k",
+        default=1,
+        type=int,
+        help="The best k models will be saved according to the quantity monitored.",
+    )
+    # Early Stopping
+    parser.add_argument(
+        "--monitor", default="val_loss", type=str, help="Quantity to monitor."
+    )
+    parser.add_argument(
+        "--max_epochs",
+        default=3,
+        type=int,
+        help="Stop training after this number of epochs.",
+    )
+    parser.add_argument("--batch_size", default=16, type=int)
+    parser.add_argument("--accelerator", default="auto", type=str)
+    args = parser.parse_args()
+
+    main(hparams=args)

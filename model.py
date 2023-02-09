@@ -1,4 +1,6 @@
 # @title Model
+from argparse import Namespace
+
 import numpy as np
 import pandas as pd
 
@@ -12,15 +14,15 @@ import pytorch_lightning as pl
 class TransformerForSequenceClassification(pl.LightningModule):
     def __init__(
         self,
-        **hparams,
+        hparams: Namespace,
     ):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(hparams)
 
         self.model = AutoModelForSequenceClassification.from_pretrained(
             "distilbert-base-uncased", num_labels=self.hparams.num_labels
         )
-        self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+        self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.model_name_or_path)
         self.metric = load_metric("accuracy")
         self.train_steps = self.hparams.num_steps
         self.learning_rate = None
@@ -114,4 +116,3 @@ class TransformerForSequenceClassification(pl.LightningModule):
 
         text_df = pd.DataFrame({"text": texts})
         df = pd.concat((text_df, pred_df, true_df), axis=1)
-        df.to_csv("./data/val_preds.csv", index=False)
