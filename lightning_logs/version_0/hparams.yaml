@@ -1,9 +1,0 @@
-accelerator: auto
-batch_size: 16
-fast_dev_run: false
-max_epochs: 3
-model_name_or_path: distilbert-base-uncased
-monitor: val_loss
-num_labels: 4
-num_steps: 9000
-save_top_k: 1

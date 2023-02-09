@@ -1,3 +1,4 @@
+# @title Data
 from typing import Union, List
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
@@ -18,7 +19,7 @@ class Encoder:
         return feature_list
 
     def encode_row(self, row: pd.Series):
-        inputs = self.encode_text(row["full_text"])
+        inputs = self.encode_text(row["text"])
         labels = torch.tensor(row["labels"], dtype=torch.long)
         sample = {
             "input_ids": torch.squeeze(inputs["input_ids"]),

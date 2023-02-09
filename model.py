@@ -39,17 +39,18 @@ class TransformerForSequenceClassification(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         outputs = self(**batch)
         val_loss, logits = outputs[:2]
-        preds = torch.argmax(logits, axis=1).detach().cpu().numpy()
+        labels = batch["labels"]
         scores = self.logits_to_scores(outputs.logits)
 
-        labels = batch["labels"].detach().cpu().numpy()
-
-        return {
-            "val_loss": val_loss,
-            "labels": labels,
-            "preds": preds,
-            "input_ids": batch["input_ids"],
+        val_step_output = {
+            "val_loss": val_loss.detach().cpu(),
+            "labels": labels.detach().cpu().numpy(),
+            "preds": torch.argmax(logits, axis=1).detach().cpu().numpy(),
+            "input_ids": batch["input_ids"].detach().cpu().numpy(),
+            "y_score": scores.detach().cpu().float().numpy(),
         }
+        self.log("val_loss", val_step_output["val_loss"], prog_bar=True)
+        return val_step_output
 
     def validation_epoch_end(self, outputs: list):
         val_loss_mean = (
@@ -111,8 +112,6 @@ class TransformerForSequenceClassification(pl.LightningModule):
 
     def write_outputs(self, texts, preds, labels):
         pred_df = pd.DataFrame(preds, columns=["pred_label"])
-
         true_df = pd.DataFrame(np.array(labels), columns=["true_label"])
-
         text_df = pd.DataFrame({"text": texts})
         df = pd.concat((text_df, pred_df, true_df), axis=1)

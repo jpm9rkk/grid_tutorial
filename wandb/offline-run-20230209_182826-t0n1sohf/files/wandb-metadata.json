@@ -1,0 +1,42 @@
+{
+    "os": "macOS-10.16-x86_64-i386-64bit",
+    "python": "3.9.5",
+    "heartbeatAt": "2023-02-09T23:28:26.842745",
+    "startedAt": "2023-02-09T23:28:26.770342",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/Users/james.morrissey/Grid/grid_tutorial/main.py",
+    "codePath": "main.py",
+    "git": {
+        "remote": "git@github.com:jpm9rkk/grid_tutorial.git",
+        "commit": "fa70c1543af46495fa29e20294b93740f5bb3f41"
+    },
+    "email": "james.morrissey@appfolio.com",
+    "root": "/Users/james.morrissey/Grid/grid_tutorial",
+    "host": "C02GJ0JBMD6W.local",
+    "username": "james.morrissey",
+    "executable": "/Users/james.morrissey/Grid/grid/bin/python",
+    "cpu_count": 8,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 2400,
+        "min": 2400,
+        "max": 2400
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2400,
+            "min": 2400,
+            "max": 2400
+        }
+    ],
+    "disk": {
+        "total": 931.546989440918,
+        "used": 20.397937774658203
+    },
+    "memory": {
+        "total": 32.0
+    }
+}
