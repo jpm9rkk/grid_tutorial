@@ -68,7 +68,10 @@ class TransformerForSequenceClassification(pl.LightningModule):
         labels = np.concatenate([x["labels"] for x in outputs], axis=0)
         preds = np.concatenate([x["preds"] for x in outputs], axis=0)
         accuracy = self.metric.compute(predictions=preds, references=labels)
-        self.write_outputs(texts, preds, labels)
+
+        self.log("avg_val_loss", val_loss_mean, prog_bar=True)
+        self.log("val_accuracy", accuracy, prog_bar=True)
+        # self.write_outputs(texts, preds, labels)
 
     def configure_optimizers(self):
         """Prepare optimizer and schedule (linear warmup and decay)"""
