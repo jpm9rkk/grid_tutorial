@@ -3,12 +3,14 @@ from argparse import Namespace
 
 import numpy as np
 import pandas as pd
+import os
 
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from transformers.optimization import AdamW, get_linear_schedule_with_warmup
 import torch
 from datasets import load_metric
 import pytorch_lightning as pl
+from transformers import pipeline
 
 
 class TransformerForSequenceClassification(pl.LightningModule):
@@ -37,6 +39,7 @@ class TransformerForSequenceClassification(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
+        wandb_logger = self.logger.experiment
         outputs = self(**batch)
         val_loss, logits = outputs[:2]
         labels = batch["labels"]
@@ -49,7 +52,6 @@ class TransformerForSequenceClassification(pl.LightningModule):
             "input_ids": batch["input_ids"].detach().cpu().numpy(),
             "y_score": scores.detach().cpu().float().numpy(),
         }
-        self.log("val_loss", val_step_output["val_loss"], prog_bar=True)
         return val_step_output
 
     def validation_epoch_end(self, outputs: list):
@@ -69,9 +71,10 @@ class TransformerForSequenceClassification(pl.LightningModule):
         preds = np.concatenate([x["preds"] for x in outputs], axis=0)
         accuracy = self.metric.compute(predictions=preds, references=labels)
 
-        self.log("avg_val_loss", val_loss_mean, prog_bar=True)
-        self.log("val_accuracy", accuracy, prog_bar=True)
-        # self.write_outputs(texts, preds, labels)
+        self.log("val_loss", val_loss_mean, prog_bar=True)
+        print(f"Val Loss: {val_loss_mean}, Accuracy: {accuracy}")
+
+        self.write_outputs(texts, preds, labels)
 
     def configure_optimizers(self):
         """Prepare optimizer and schedule (linear warmup and decay)"""
@@ -114,7 +117,17 @@ class TransformerForSequenceClassification(pl.LightningModule):
         return torch.softmax(logits, dim=1)
 
     def write_outputs(self, texts, preds, labels):
+        wandb_logger = self.logger.experiment
         pred_df = pd.DataFrame(preds, columns=["pred_label"])
+
         true_df = pd.DataFrame(np.array(labels), columns=["true_label"])
+
         text_df = pd.DataFrame({"text": texts})
         df = pd.concat((text_df, pred_df, true_df), axis=1)
+        # wandb_logger.log({"table": df})
+        df.to_csv(os.path.join(self.hparams.val_dir, "val_result.csv"), index=False)
+
+    def baseline_inference(df, baseline_model, inference_column):
+        inputs = df.inference_column.values.tolist()
+        baseline_predictions = [baseline_model(x) for x in inputs]
+        return baseline_predictions

@@ -25,7 +25,6 @@ def main(hparams) -> None:
     dm = MultiClassDataModule(train_df, val_df, tokenizer, encoder)
     dm.setup()
     hparams.num_steps = hparams.max_epochs * len(dm.train_dataloader())
-
     # Initialize TransformerForSequenceClassification
     model = TransformerForSequenceClassification(hparams)
 
@@ -58,46 +57,46 @@ def main(hparams) -> None:
 
 
 if __name__ == "__main__":
-    args = Namespace(
-        model_name_or_path="distilbert-base-uncased",
-        num_labels=3,
-        save_top_k=1,
-        max_epochs=1,
-        batch_size=16,
-        accelerator="auto",
-        data_dir="/Users/james.morrissey/Downloads/solvvy_one_shot_data",
-        # data_name="zero_shot_labels_1000_2000.csv",
-        fast_dev_run=True,
-        monitor="val_loss",
+
+    parser = argparse.ArgumentParser(
+        description="Train a Transformer model for sequence classification",
+        add_help=True,
     )
+    parser.add_argument("--fast_dev_run", type=bool, default=False)
+    parser.add_argument(
+        "--model_name_or_path", type=str, default="distilbert-base-uncased"
+    )
+    parser.add_argument("--num_labels", type=int, default=3)
 
-    # parser = argparse.ArgumentParser(
-    #     description="Train a Transformer model for sequence classification",
-    #     add_help=True,
-    # )
-    # parser.add_argument("--fast_dev_run", type=bool, default=False)
-    # parser.add_argument("--model_name_or_path", type=str)
-    # parser.add_argument("--num_labels", type=int)
-
-    # parser.add_argument(
-    #     "--save_top_k",
-    #     default=1,
-    #     type=int,
-    #     help="The best k models will be saved according to the quantity monitored.",
-    # )
-    # # Early Stopping
-    # parser.add_argument(
-    #     "--monitor", default="val_loss", type=str, help="Quantity to monitor."
-    # )
-    # parser.add_argument(
-    #     "--max_epochs",
-    #     default=3,
-    #     type=int,
-    #     help="Stop training after this number of epochs.",
-    # )
-    # parser.add_argument("--batch_size", default=16, type=int)
-    # parser.add_argument("--accelerator", default="auto", type=str)
-    # parser.add_argument("--accelerator", default="auto", type=str)
-    # args = parser.parse_args()
+    parser.add_argument(
+        "--save_top_k",
+        default=1,
+        type=int,
+        help="The best k models will be saved according to the quantity monitored.",
+    )
+    # Early Stopping
+    parser.add_argument(
+        "--monitor", default="val_loss", type=str, help="Quantity to monitor."
+    )
+    parser.add_argument(
+        "--max_epochs",
+        default=3,
+        type=int,
+        help="Stop training after this number of epochs.",
+    )
+    parser.add_argument("--batch_size", default=16, type=int)
+    parser.add_argument("--accelerator", default="auto", type=str)
+    parser.add_argument(
+        "--data_dir",
+        default="/Users/james.morrissey/Grid/grid_tutorial/solvvy_one_shot_data/",
+        type=str,
+    )
+    parser.add_argument("--project_dir", default="./", type=str)
+    parser.add_argument(
+        "--val_dir",
+        default="/Users/james.morrissey/Grid/grid_tutorial/validation_results/",
+        type=str,
+    )
+    args = parser.parse_args()
 
     main(hparams=args)

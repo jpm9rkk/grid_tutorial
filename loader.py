@@ -92,6 +92,7 @@ class MultiClassDataModule(pl.LightningDataModule):
 
         self.train_df = train_df
         self.val_df = val_df
+        self.baseline_df = val_df.copy()
 
     def setup(self, stage=None):
         train_features = self.encoder.encode(self.train_df)
